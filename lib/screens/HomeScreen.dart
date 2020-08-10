@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:general_crowd_detector_app/comps/LocationWidget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:general_crowd_detector_app/global/app_colors.dart';
 import 'package:general_crowd_detector_app/classes/Location.dart';
 import 'package:general_crowd_detector_app/classes/SubLocation.dart';
+import 'package:http/http.dart' as http;
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,21 +16,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   /// List of Locations available
-  List<Location> locationList = [
-    Location(name: "Margocity Depok", sublocations: [
-      SubLocation(name: "Pintu Utara", isCrowded: true),
-      SubLocation(name: "Pintu Selatan", isCrowded: false),
-      SubLocation(name: "Lobby", isCrowded: true),
-    ]),
-    Location(name: "ITC Mall Depok", sublocations: [
-      SubLocation(name: "Pintu Timur", isCrowded: false),
-      SubLocation(name: "Lobby", isCrowded: false)
-    ]),
-    Location(name: "Stasiun UI Depok", sublocations: [
-      SubLocation(name: "Peron 1", isCrowded: false),
-      SubLocation(name: "Peron 2", isCrowded: true)
-    ])
-  ];
+  Future<List<Location>> locationList;
+
+  @override
+  void initState() {
+    super.initState();
+    locationList = fetchLocationData();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    "Pinned",
+                    "Starred",
                     style: GoogleFonts.poppins(
                         color: AppColors.veryLightTextColor,
                         fontSize: 16,
@@ -105,12 +101,21 @@ class _HomeScreenState extends State<HomeScreen> {
             /// container for places list
             Expanded(
               child: Container(
-//                color: Colors.lightBlue[100],
-                child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                  itemCount: locationList.length,
-                  itemBuilder: (context, index) {
-                    return locationWidget(locationList[index]);
+                child: FutureBuilder(
+                  future: locationList,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return ListView.builder(
+                          padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
+                          itemCount: snapshot.data.length,
+                          itemBuilder: (context, index) {
+                            return locationWidget(snapshot.data[index]);
+                          });
+                    } else if (snapshot.hasError) {
+                      return Text("${snapshot.error}");
+                    }
+                    // By default, show a loading spinner.
+                    return CircularProgressIndicator();
                   },
                 ),
               ),
@@ -120,70 +125,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-Widget locationWidget(Location location) {
-  return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.fromLTRB(0, 16, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          /// location name
-          Text(
-            location.name,
-            style: GoogleFonts.poppins(
-                color: AppColors.darkTextColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w700),
-          ),
+  Future<List<Location>> fetchLocationData() async {
+    final response = await http.get('http://192.168.2.128:5000/get-locations');
+    if (response.statusCode == 200) {
+      final jsonResponseBody = json.decode(response.body)['data'];
+      final locationNames = jsonResponseBody.keys;
+      List<Location> listLocation = [];
 
-          // Vertical spacing
-          SizedBox(height: 8),
-
-          /// Row sublocation of that place, depicted with circles
-          Column(
-            children: location.sublocations.map((sub) {
-              return subLocationWidget(sub);
-            }).toList(),
-          )
-        ],
-      ),
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey, width: 1)));
-}
-
-Widget subLocationWidget(SubLocation subLocation) {
-  return Row(
-    children: [
-      /// color of the dot depending on the crowdness
-      Container(
-        height: 20,
-        width: 20,
-        margin: EdgeInsets.all(4),
-        decoration: new BoxDecoration(
-          color: subLocation.isCrowded ? Colors.redAccent : Colors.greenAccent,
-          shape: BoxShape.circle,
-        ),
-      ),
-
-      /// Horizontal spacing
-      SizedBox(
-        width: 8,
-      ),
-
-      /// name of the sublocation
-      Text(
-        subLocation.name,
-        style: GoogleFonts.poppins(
-            color: AppColors.veryLightTextColor,
-            fontSize: 16,
-            fontWeight: FontWeight.w500),
-      )
-    ],
-  );
+      for (String locationName in locationNames) {
+        List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
+        listLocation.add(Location.fromJson(locationName, jsonSubLocation));
+      }
+      return listLocation;
+    } else {
+      throw Exception('Failed to load location data');
+    }
+  }
 }
 
 class LocationSearch extends SearchDelegate<Location> {
@@ -240,7 +198,9 @@ class LocationSearch extends SearchDelegate<Location> {
     /// show suggestion
     final List<Location> suggestionList = query.isEmpty
         ? myList
-        : myList.where((loc) => loc.name.toLowerCase().startsWith(query)).toList();
+        : myList
+            .where((loc) => loc.name.toLowerCase().startsWith(query))
+            .toList();
 
     return ListView.builder(
       itemBuilder: (context, index) => ListTile(
