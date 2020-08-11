@@ -170,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Location>> fetchLocationData() async {
     final response = await http
-        .get('http://192.168.1.27:5000/get-locations')
+        .get('https://gcd-api.herokuapp.com/get-locations')
         .catchError((e) {
       throw Exception("Tidak bisa terhubung ke server");
     });
