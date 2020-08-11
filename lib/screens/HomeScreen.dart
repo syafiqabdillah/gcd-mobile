@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
@@ -6,8 +7,8 @@ import 'package:general_crowd_detector_app/comps/LocationWidget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:general_crowd_detector_app/global/app_colors.dart';
 import 'package:general_crowd_detector_app/classes/Location.dart';
-import 'package:general_crowd_detector_app/classes/SubLocation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -17,11 +18,29 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   /// List of Locations available
   Future<List<Location>> locationList;
+  Timer timer;
+  // Shared preferences to store Starred Location's ID
+  List<String> starredLocationNames;
 
   @override
   void initState() {
     super.initState();
-    locationList = fetchLocationData();
+    setState(() {
+      locationList = fetchLocationData();
+      starredLocationNames = [];
+    });
+    // Refresh data every 15 seconds
+    timer = Timer.periodic(Duration(seconds: 15), (Timer t) {
+      setState(() {
+        locationList = fetchLocationData();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -30,15 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-              showSearch(context: context, delegate: LocationSearch());
-            },
-            color: AppColors.darkTextColor,
-          )
-        ],
       ),
       body: Container(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -109,13 +119,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
                           itemCount: snapshot.data.length,
                           itemBuilder: (context, index) {
-                            return locationWidget(snapshot.data[index]);
+                            return LocationWidget(
+                                location: snapshot.data[index]);
                           });
                     } else if (snapshot.hasError) {
                       return Text("${snapshot.error}");
                     }
                     // By default, show a loading spinner.
-                    return CircularProgressIndicator();
+                    return Center(child: CircularProgressIndicator());
                   },
                 ),
               ),
@@ -127,99 +138,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<List<Location>> fetchLocationData() async {
-    final response = await http.get('http://192.168.2.128:5000/get-locations');
+    final response = await http.get('http://192.168.2.126:5000/get-locations');
     if (response.statusCode == 200) {
+      // print("fetching locations data from API");
       final jsonResponseBody = json.decode(response.body)['data'];
       final locationNames = jsonResponseBody.keys;
       List<Location> listLocation = [];
 
       for (String locationName in locationNames) {
         List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
-        listLocation.add(Location.fromJson(locationName, jsonSubLocation));
+        Location newLocation = Location.fromJson(locationName, jsonSubLocation);
+        if (starredLocationNames.contains(locationName)) {
+          newLocation.isStarred = true;
+        }
+        listLocation.add(newLocation);
       }
       return listLocation;
     } else {
       throw Exception('Failed to load location data');
     }
-  }
-}
-
-class LocationSearch extends SearchDelegate<Location> {
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    /// action for app bar
-    return [
-      IconButton(
-          icon: Icon(Icons.clear),
-          onPressed: () {
-            query = "";
-          })
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    /// leading icon on the left of the app bar
-    return IconButton(
-      icon: AnimatedIcon(
-        icon: AnimatedIcons.menu_arrow,
-        progress: transitionAnimation,
-      ),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    /// show result based on the selection
-    return Text("");
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    var myList = [
-      Location(name: "Margocity Depok", sublocations: [
-        SubLocation(name: "Pintu Utara", isCrowded: true),
-        SubLocation(name: "Pintu Selatan", isCrowded: false),
-        SubLocation(name: "Lobby", isCrowded: true),
-      ]),
-      Location(name: "ITC Mall Depok", sublocations: [
-        SubLocation(name: "Pintu Timur", isCrowded: false),
-        SubLocation(name: "Lobby", isCrowded: false)
-      ]),
-      Location(name: "Stasiun UI Depok", sublocations: [
-        SubLocation(name: "Peron 1", isCrowded: false),
-        SubLocation(name: "Peron 2", isCrowded: true)
-      ])
-    ];
-
-    /// show suggestion
-    final List<Location> suggestionList = query.isEmpty
-        ? myList
-        : myList
-            .where((loc) => loc.name.toLowerCase().startsWith(query))
-            .toList();
-
-    return ListView.builder(
-      itemBuilder: (context, index) => ListTile(
-        onTap: () {
-          showResults(context);
-        },
-        title: RichText(
-          text: TextSpan(
-              text: suggestionList[index].name.substring(0, query.length),
-              style:
-                  TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-              children: [
-                TextSpan(
-                    text: suggestionList[index].name.substring(query.length),
-                    style: TextStyle(color: Colors.grey))
-              ]),
-        ),
-      ),
-      itemCount: suggestionList.length,
-    );
   }
 }
