@@ -3,9 +3,8 @@ import 'package:general_crowd_detector_app/classes/SubLocation.dart';
 class Location {
   String name;
   List<SubLocation> sublocations;
-  bool isStarred;
 
-  Location({this.name, this.sublocations, this.isStarred});
+  Location({this.name, this.sublocations});
 
   factory Location.fromJson(
       String locationName, List<dynamic> jsonListSubLocation) {
@@ -15,7 +14,6 @@ class Location {
       subLocationList.add(SubLocation.fromJson(sub));
     }
 
-    return Location(
-        name: locationName, sublocations: subLocationList, isStarred: false);
+    return Location(name: locationName, sublocations: subLocationList);
   }
 }

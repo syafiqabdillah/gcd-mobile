@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:general_crowd_detector_app/global/app_colors.dart';
 import 'package:general_crowd_detector_app/classes/Location.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -19,15 +18,12 @@ class _HomeScreenState extends State<HomeScreen> {
   /// List of Locations available
   Future<List<Location>> locationList;
   Timer timer;
-  // Shared preferences to store Starred Location's ID
-  List<String> starredLocationNames;
 
   @override
   void initState() {
     super.initState();
     setState(() {
       locationList = fetchLocationData();
-      starredLocationNames = [];
     });
     // Refresh data every 15 seconds
     timer = Timer.periodic(Duration(seconds: 15), (Timer t) {
@@ -108,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
             /// vertical spacing
             SizedBox(height: 8),
 
-            /// container for places list
+            /// container for location list
             Expanded(
               child: Container(
                 child: FutureBuilder(
@@ -148,9 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
       for (String locationName in locationNames) {
         List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
         Location newLocation = Location.fromJson(locationName, jsonSubLocation);
-        if (starredLocationNames.contains(locationName)) {
-          newLocation.isStarred = true;
-        }
         listLocation.add(newLocation);
       }
       return listLocation;
