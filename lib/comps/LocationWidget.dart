@@ -86,7 +86,7 @@ class _LocationWidgetState extends State<LocationWidget> {
   }
 
   removeStar(String locationName) async {
-    print("removing $locationName from child");
+    // print("removing $locationName from child");
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> currentStarredLocationNames =
         prefs.getStringList("starredLocationNames");
@@ -97,7 +97,7 @@ class _LocationWidgetState extends State<LocationWidget> {
   }
 
   addStar(String locationName) async {
-    print("adding $locationName from child");
+    // print("adding $locationName from child");
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> currentStarredLocationNames =
         prefs.getStringList("starredLocationNames");

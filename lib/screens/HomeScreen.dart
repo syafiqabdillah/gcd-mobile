@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:general_crowd_detector_app/global/app_colors.dart';
 import 'package:general_crowd_detector_app/classes/Location.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// List of Locations available
   Future<List<Location>> locationList;
   Timer timer;
+  bool showAll = true;
 
   @override
   void initState() {
@@ -83,19 +85,39 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  Text(
-                    "All",
-                    style: GoogleFonts.poppins(
-                        color: AppColors.lightGreenColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showAll = true;
+                        locationList = fetchLocationData();
+                      });
+                    },
+                    child: Text(
+                      "All",
+                      style: GoogleFonts.poppins(
+                          color: showAll
+                              ? AppColors.lightGreenColor
+                              : AppColors.lightTextColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  Text(
-                    "Starred",
-                    style: GoogleFonts.poppins(
-                        color: AppColors.veryLightTextColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showAll = false;
+                        locationList = fetchLocationData();
+                      });
+                    },
+                    child: Text(
+                      "Starred",
+                      style: GoogleFonts.poppins(
+                          color: !showAll
+                              ? AppColors.lightGreenColor
+                              : AppColors.lightTextColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -111,15 +133,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   future: locationList,
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      return ListView.builder(
-                          padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                          itemCount: snapshot.data.length,
-                          itemBuilder: (context, index) {
-                            return LocationWidget(
-                                location: snapshot.data[index]);
-                          });
+                      if (snapshot.data.length > 0) {
+                        return ListView.builder(
+                            padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
+                            itemCount: snapshot.data.length,
+                            itemBuilder: (context, index) {
+                              return LocationWidget(
+                                  location: snapshot.data[index]);
+                            });
+                      } else {
+                        return Center(
+                            child: Text(
+                          "Data kosong :/",
+                          style: GoogleFonts.poppins(
+                              color: AppColors.lightTextColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500),
+                        ));
+                      }
                     } else if (snapshot.hasError) {
-                      return Text("${snapshot.error}");
+                      return Center(
+                          child: Text(
+                              "Terjadi gangguan jaringan. Coba beberapa saat lagi."));
                     }
                     // By default, show a loading spinner.
                     return Center(child: CircularProgressIndicator());
@@ -134,7 +169,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<List<Location>> fetchLocationData() async {
-    final response = await http.get('http://192.168.2.126:5000/get-locations');
+    final response = await http
+        .get('http://192.168.1.27:5000/get-locations')
+        .catchError((e) {
+      throw Exception("Tidak bisa terhubung ke server");
+    });
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> currentStarredLocationNames =
+        prefs.getStringList("starredLocationNames");
+
     if (response.statusCode == 200) {
       // print("fetching locations data from API");
       final jsonResponseBody = json.decode(response.body)['data'];
@@ -142,9 +186,19 @@ class _HomeScreenState extends State<HomeScreen> {
       List<Location> listLocation = [];
 
       for (String locationName in locationNames) {
-        List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
-        Location newLocation = Location.fromJson(locationName, jsonSubLocation);
-        listLocation.add(newLocation);
+        if (!showAll) {
+          if (currentStarredLocationNames.contains(locationName)) {
+            List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
+            Location newLocation =
+                Location.fromJson(locationName, jsonSubLocation);
+            listLocation.add(newLocation);
+          }
+        } else {
+          List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
+          Location newLocation =
+              Location.fromJson(locationName, jsonSubLocation);
+          listLocation.add(newLocation);
+        }
       }
       return listLocation;
     } else {
