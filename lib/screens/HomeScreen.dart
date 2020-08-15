@@ -170,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Location>> fetchLocationData() async {
     final response = await http
-        .get('https://gcd-api.herokuapp.com/get-locations')
+        .get('http://192.168.2.125:5000/get-crowd-density-information')
         .catchError((e) {
       throw Exception("Tidak bisa terhubung ke server");
     });
@@ -187,16 +187,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       for (String locationName in locationNames) {
         if (!showAll) {
+          // show only starred location
           if (currentStarredLocationNames.contains(locationName)) {
-            List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
+            Map<String, dynamic> locationData = jsonResponseBody[locationName];
             Location newLocation =
-                Location.fromJson(locationName, jsonSubLocation);
+                Location.fromJson(locationName, locationData);
             listLocation.add(newLocation);
           }
         } else {
-          List<dynamic> jsonSubLocation = jsonResponseBody[locationName];
-          Location newLocation =
-              Location.fromJson(locationName, jsonSubLocation);
+          Map<String, dynamic> locationData = jsonResponseBody[locationName];
+          Location newLocation = Location.fromJson(locationName, locationData);
           listLocation.add(newLocation);
         }
       }

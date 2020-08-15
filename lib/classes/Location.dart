@@ -7,10 +7,10 @@ class Location {
   Location({this.name, this.sublocations});
 
   factory Location.fromJson(
-      String locationName, List<dynamic> jsonListSubLocation) {
+      String locationName, Map<String, dynamic> locationData) {
     List<SubLocation> subLocationList = [];
 
-    for (Map<String, dynamic> sub in jsonListSubLocation) {
+    for (Map<String, dynamic> sub in locationData['sublocations']) {
       subLocationList.add(SubLocation.fromJson(sub));
     }
 
