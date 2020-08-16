@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:general_crowd_detector_app/comps/LocationWidget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:general_crowd_detector_app/global/app_colors.dart';
+import 'package:general_crowd_detector_app/global/app_constant.dart';
 import 'package:general_crowd_detector_app/classes/Location.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -144,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else {
                         return Center(
                             child: Text(
-                          "Data kosong :/",
+                          "Data kosong :|",
                           style: GoogleFonts.poppins(
                               color: AppColors.lightTextColor,
                               fontSize: 16,
@@ -170,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Location>> fetchLocationData() async {
     final response = await http
-        .get('http://192.168.2.125:5000/get-crowd-density-information')
+        .get('${AppConstant.BASE_URL}get-crowd-density-information')
         .catchError((e) {
       throw Exception("Tidak bisa terhubung ke server");
     });
